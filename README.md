@@ -29,7 +29,7 @@ At launch time, debrief-bot checks if "Créer un vocal débrief" voice channel i
     * guildId : your Discord server guild id
 3. Invite your bot to your discord server with the following permissions :
     * scope : bot
-    * permissions :
+    * permissions (1099796909136) :
         * manage channels
         * manage roles
         * read messages/view channels
