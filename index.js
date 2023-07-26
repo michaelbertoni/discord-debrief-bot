@@ -1,5 +1,8 @@
 const { Events, Client, ChannelType, GatewayIntentBits, PermissionFlagsBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
-const { token, guildId, appId } = require('./config.json'); // Assurez-vous d'avoir un fichier config.json avec vos tokens
+require('dotenv').config();
+const token = process.env.BOT_TOKEN
+const appId = process.env.BOT_APPLICATION_ID
+const guildId = process.env.GUILD_ID
 
 const defaultUserDebriefPermission = [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak, PermissionFlagsBits.SendVoiceMessages, PermissionFlagsBits.ViewChannel]
 
