@@ -22,11 +22,10 @@ At launch time, debrief-bot checks if "Créer un vocal débrief" voice channel i
 
 ## How to run the bot
 
-1. Copy config_template.json and rename the copy to config.json
-2. Fill in the fields :
-    * token : your Discord bot secret token
-    * appId : your Discord bot application id
-    * guildId : your Discord server guild id
+1. Provide the following environment variables :
+    * BOT_TOKEN : your Discord bot secret token
+    * BOT_APPLICATION_TOKEN : your Discord bot application id
+    * GUILD_ID : your Discord server guild id
 3. Invite your bot to your discord server with the following permissions :
     * scope : bot
     * permissions (1099796909136) :
@@ -41,6 +40,8 @@ At launch time, debrief-bot checks if "Créer un vocal débrief" voice channel i
 4. Run the bot :
     * `npm install`
     * `node ./index.js`
+4. (alternative) Run the bot with Docker :
+    * `docker run -d -e BOT_TOKEN=<token> -e BOT_APPLICATION_ID <appId> -e GUILD_ID <guildId> ghcr.io/michaelbertoni/discord-debrief-bot:latest`
 
 ## Known issues
 * debrief-bot does not save door emoji / invited member couples in memory and cannot retrieve them at launch if they already exist. \
