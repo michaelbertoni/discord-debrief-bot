@@ -3,6 +3,9 @@ require('dotenv').config();
 const token = process.env.BOT_TOKEN
 const appId = process.env.BOT_APPLICATION_ID
 const guildId = process.env.GUILD_ID
+const moderationRoleIds = process.env.MODERATION_ROLE_IDS.split(",") || []
+
+const CATEGORY_NAME = 'Debrief'
 
 const defaultUserDebriefPermission = [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak, PermissionFlagsBits.SendVoiceMessages, PermissionFlagsBits.ViewChannel]
 
@@ -16,18 +19,26 @@ const client = new Client({
 });
 
 const addDebriefUserCommand = new SlashCommandBuilder()
-        .setName('inviter_debrief')
-        .setDescription('Autoriser des joueur-euses à rejoindre mon vocal de débrief')
-        .addUserOption(option => option.setName("joueur1").setDescription("Joueur 1").setRequired(true))
-        .addUserOption(option => option.setName("joueur2").setDescription("Joueur 2 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur3").setDescription("Joueur 3 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur4").setDescription("Joueur 4 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur5").setDescription("Joueur 5 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur6").setDescription("Joueur 6 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur7").setDescription("Joueur 7 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur8").setDescription("Joueur 8 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur9").setDescription("Joueur 9 (facultatif)").setRequired(false))
-        .addUserOption(option => option.setName("joueur10").setDescription("Joueur 10 (facultatif)").setRequired(false))
+        .setName('debrief')
+        .setDescription('Commandes pour gérer les vocaux temporaires de débrief')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('invite')
+                .setDescription('Inviter des joueurs')
+                .addUserOption(option => option.setName("joueur1").setDescription("Joueur 1").setRequired(true))
+                .addUserOption(option => option.setName("joueur2").setDescription("Joueur 2 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur3").setDescription("Joueur 3 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur4").setDescription("Joueur 4 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur5").setDescription("Joueur 5 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur6").setDescription("Joueur 6 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur7").setDescription("Joueur 7 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur8").setDescription("Joueur 8 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur9").setDescription("Joueur 9 (facultatif)").setRequired(false))
+                .addUserOption(option => option.setName("joueur10").setDescription("Joueur 10 (facultatif)").setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('close')
+                .setDescription('[ADMIN] Fermer le débrief'))
         .toJSON()
 
 const rest = new REST({ version: '10' }).setToken(token);
@@ -67,7 +78,7 @@ client.on(Events.ClientReady, async () => {
             defaultDebriefChannel = await guild.channels.create({
                 name: "Créer un vocal débrief",
                 type: ChannelType.GuildVoice,
-                parent: guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === 'Débrief'),
+                parent: guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === CATEGORY_NAME),
                 permissionOverwrites: [
                     {
                         id: guild.roles.everyone.id,
@@ -102,8 +113,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     
         const { commandName } = interaction;
     
-        if (commandName === 'inviter_debrief') {
-            await handleAddDebriefUserCommand(interaction);
+        if (commandName === 'debrief') {
+            if (interaction.options.getSubcommand() === 'invite') {
+                await handleAddDebriefUserCommand(interaction);
+            }
+            else if (interaction.options.getSubcommand() === 'close') {
+                await handleCloseDebriefUserCommand(interaction);
+            }
         }
     }
     catch (error) {
@@ -147,39 +163,62 @@ async function createDebriefVoiceChannel(voiceState) {
         console.log(`Voice channel "${channelName}" for member ${member.user.username} - ${member.user.id} already exists, moving user into their channel`)
     }
     else {
+        // Préparer les permissions du canal vocal
+        let debriefPermissionOverwrites = [
+            {
+                id: guild.roles.everyone.id,
+                deny: defaultUserDebriefPermission,
+            },
+            {
+                id: member.user.id,
+                allow: defaultUserDebriefPermission,
+            },
+            {
+                id: appId,
+                allow: defaultUserDebriefPermission.concat(PermissionFlagsBits.ManageChannels)
+            },
+        ]
+
+        // ajout des permissions par role de modération
+        moderationRoleIds.forEach(roleId => {
+            debriefPermissionOverwrites.push({
+                id: roleId,
+                allow: defaultUserDebriefPermission.concat(PermissionFlagsBits.ManageChannels)
+            })
+        })
         // Créer un nouveau canal vocal avec le nom "<username> - debrief"
         const newChannel = await guild.channels.create({
             name: channelName,
             type: ChannelType.GuildVoice,
-            parent: guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === 'Débrief'),
-            permissionOverwrites: [
-                {
-                    id: guild.roles.everyone.id,
-                    deny: defaultUserDebriefPermission,
-                },
-                {
-                    id: member.user.id,
-                    allow: defaultUserDebriefPermission,
-                },
-                {
-                    id: appId,
-                    allow: defaultUserDebriefPermission.concat(PermissionFlagsBits.ManageChannels)
-                }
-            ]
+            parent: guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === CATEGORY_NAME),
+            permissionOverwrites: debriefPermissionOverwrites
         });
     
         // Stocker le canal vocal dans le dictionnaire
         debriefChannels.set(member.user.username, newChannel.id);
-        newChannel.send(`${member.user} voilà ton canal de débrief !\nTu peux utiliser la commande \`/inviter_debrief\` et y mentionner une ou plusieurs personnes à inviter dans ce canal.`)
+        newChannel.send(`${member.user} voilà ton canal de débrief !\nTu peux utiliser la commande \`/debrief invite\` et y mentionner une ou plusieurs personnes à inviter dans ce canal.`)
     }
 
     member.voice.setChannel(debriefChannels.get(member.user.username));
     console.log(`Successfully created voice channel "${channelName}" for user ${member.user.username}`)
 }
 
+async function handleCloseDebriefUserCommand(interaction) {
+    if (!interaction.member.roles.cache.find(r => moderationRoleIds.includes(r.id))) {
+        return interaction.reply({ content: "Tu n'as pas les autorisations nécessaires pour lancer cette commande.", ephemeral: true });
+    }
+
+    if (debriefChannels.has(interaction.channel.name.replace(" - Débrief", ""))) { // retrieve username from channel name
+        console.log(`${interaction.member.user.username} ran debrief close command on Debrief channel "${interaction.channel.name}", deleting...`)
+        interaction.channel.delete();
+        debriefChannels.delete(interaction.channel.name.replace(" - Débrief", ""));
+        console.log(`Debrief channel "${interaction.channel.name}" deleted`)
+    }
+}
+
 async function handleAddDebriefUserCommand(interaction) {
     const { member, options } = interaction
-    console.log(`${member.user.username} ran inviter_debrief command`)
+    console.log(`${member.user.username} ran debrief invite command`)
 
     const userDebriefChannel = await getUserDebriefChannel(member)
     if (userDebriefChannel) {
@@ -216,7 +255,7 @@ async function addOneUserToDebrief(invitedUser, debriefChannel) {
         return
     }
 
-    debriefChannel.permissionOverwrites.create(invitedUser,
+    await debriefChannel.permissionOverwrites.create(invitedUser,
         {
             Connect: true,
             Speak: true,
